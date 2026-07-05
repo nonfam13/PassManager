@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>PassManager Secure</title>
+    <title>PassManager Ultimate</title>
     
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -31,7 +31,8 @@
         h1 { font-size: 22px; margin-bottom: 20px; text-align: center; }
         .page { display: none; }
         .page.active { display: block; }
-        .form-card, .sync-card {
+        
+        .form-card, .sync-card, .search-card {
             background: var(--card-color);
             padding: 20px;
             border-radius: 12px;
@@ -40,7 +41,7 @@
         }
         .input-group { margin-bottom: 15px; }
         .input-group label { display: block; font-size: 14px; font-weight: 600; margin-bottom: 5px; }
-        .input-group input, .sync-card textarea {
+        .input-group input, .sync-card textarea, .search-box {
             width: 100%;
             padding: 12px;
             border: 1px solid var(--border-color);
@@ -48,55 +49,41 @@
             box-sizing: border-box;
             font-size: 16px;
         }
-        .sync-card textarea {
-            font-family: monospace;
-            height: 100px;
-            margin-bottom: 10px;
-            resize: none;
-        }
+        .sync-card textarea { font-family: monospace; height: 100px; margin-bottom: 10px; resize: none; }
+        
         button {
-            width: 100%;
-            padding: 14px;
-            background-color: var(--primary-color);
-            color: white;
-            border: none;
-            border-radius: 8px;
-            font-size: 16px;
-            font-weight: bold;
-            cursor: pointer;
-            margin-bottom: 8px;
+            width: 100%; padding: 14px; background-color: var(--primary-color); color: white;
+            border: none; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; margin-bottom: 8px;
         }
         button:active { opacity: 0.8; }
         button.purple { background-color: #5856d6; }
         
+        /* 🔍 検索・フィルターエリアの追加スタイル */
+        .search-card { padding: 15px; }
+        .search-box { margin-bottom: 12px; background-color: #f2f2f7; border: none; }
+        .filter-tags { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 5px; }
+        .filter-btn {
+            width: auto; padding: 6px 12px; font-size: 13px; background-color: #e5e5ea;
+            color: #333; border-radius: 20px; margin-bottom: 0; font-weight: normal;
+        }
+        .filter-btn.active { background-color: var(--primary-color); color: white; font-weight: bold; }
+
+        /* パスワード一覧のデザイン */
         .password-list { margin-top: 10px; }
         .password-item {
-            background: var(--card-color);
-            padding: 15px;
-            border-radius: 12px;
-            margin-bottom: 10px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.02);
-            border: 1px solid var(--border-color);
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
+            background: var(--card-color); padding: 15px; border-radius: 12px; margin-bottom: 10px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.02); border: 1px solid var(--border-color);
+            display: flex; justify-content: space-between; align-items: center;
         }
         .item-info .site-title { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
         .item-info .site-name { font-weight: bold; font-size: 16px; }
         .item-info .user-tag { font-size: 11px; background: #e5e5ea; padding: 2px 6px; border-radius: 4px; color: #555; font-weight: 600; }
         .item-info .user-id, .item-info .pass-text { font-size: 14px; color: #666; }
-        .delete-btn { background-color: var(--danger-color); width: auto; padding: 8px 12px; font-size: 14px; }
+        .delete-btn { background-color: var(--danger-color); width: auto; padding: 8px 12px; font-size: 14px; margin-bottom: 0; }
 
         .tab-bar {
-            position: fixed;
-            bottom: 0; left: 0; right: 0;
-            height: calc(60px + env(safe-area-inset-bottom));
-            background: var(--tab-bg);
-            border-top: 1px solid var(--border-color);
-            display: flex;
-            justify-content: space-around;
-            padding-top: 5px;
-            box-sizing: border-box;
+            position: fixed; bottom: 0; left: 0; right: 0; height: calc(60px + env(safe-area-inset-bottom));
+            background: var(--tab-bg); border-top: 1px solid var(--border-color); display: flex; justify-content: space-around; padding-top: 5px; box-sizing: border-box;
         }
         .tab-item {
             background: none; border: none; color: #8e8e93; font-size: 12px;
@@ -141,6 +128,13 @@
 
     <div id="listPage" class="page">
         <h1>📋 保存されたパスワード一覧</h1>
+        
+        <div class="search-card">
+            <input type="text" id="searchBox" class="search-box" placeholder="🔍 サイト名やIDで検索..." oninput="filterPasswords()">
+            <div id="filterTags" class="filter-tags">
+                </div>
+        </div>
+
         <div class="password-list" id="passwordList"></div>
     </div>
 
@@ -156,6 +150,8 @@
     </nav>
 
     <script>
+        let currentFilterUser = "すべて"; // 現在選択されているフィルターの使用者名
+
         window.onload = function() { displayPasswords(); generateSyncText(); };
 
         function switchPage(pageName) {
@@ -167,15 +163,16 @@
             if (pageName === 'input') {
                 document.getElementById('inputPage').classList.add('active');
                 document.getElementById('tabInput').classList.add('active');
-                generateSyncText(); // 共有エリアの文字を最新にする
+                generateSyncText();
             } else if (pageName === 'list') {
                 document.getElementById('listPage').classList.add('active');
                 document.getElementById('tabList').classList.add('active');
-                displayPasswords();
+                currentFilterUser = "すべて"; // 画面を開いたときはリセット
+                document.getElementById('searchBox').value = ""; // 検索ボックスもクリア
+                displayPasswords(); 
             }
         }
 
-        // 純粋に手元のスマホ（パソコン）にだけ保存する
         function savePasswordOnly() {
             const userName = document.getElementById('userName').value.trim() || '未設定';
             const siteName = document.getElementById('siteName').value.trim();
@@ -200,13 +197,11 @@
             alert('保存しました！「一覧を見る」タブに追加されています。');
         }
 
-        // 現在のデータをテキストエリアに文字として書き出す
         function generateSyncText() {
             const passwords = localStorage.getItem('myPasswords') || "[]";
             document.getElementById('syncTextarea').value = passwords === "[]" ? "" : passwords;
         }
 
-        // テキストエリアの文字をクリップボードにコピー
         function copyCurrentData() {
             const textarea = document.getElementById('syncTextarea');
             if (!textarea.value) {
@@ -214,18 +209,14 @@
                 return;
             }
             textarea.select();
-            textarea.setSelectionRange(0, 99999); // モバイル対応
+            textarea.setSelectionRange(0, 99999);
             navigator.clipboard.writeText(textarea.value);
-            alert('暗号データをコピーしました！\nこれをLINEのメッセージやGoogleドキュメント、メモ帳などにペースト（貼り付け）して他の端末に送ってください。');
+            alert('暗号データをコピーしました！他の端末に送ってください。');
         }
 
-        // 貼り付けられた文字からデータを安全に合流（マージ）
         function mergeFromTextarea() {
             const text = document.getElementById('syncTextarea').value.trim();
-            if (!text) {
-                alert('テキストエリアにデータが入力されていません。');
-                return;
-            }
+            if (!text) { alert('データが入力されていません。'); return; }
 
             try {
                 const incomingData = JSON.parse(text);
@@ -252,60 +243,19 @@
                 localStorage.setItem('myPasswords', JSON.stringify(currentData));
                 displayPasswords();
                 generateSyncText();
-                
-                alert(`合流が完了しました！\n新しく ${addedCount} 件のデータが追加されました。`);
+                alert(`合流完了！新しく ${addedCount} 件のデータが追加されました。`);
             } catch (err) {
-                alert('データの形式が正しくありません。コピーしたテキストをそのまま貼り付けてください。');
+                alert('データの形式が正しくありません。');
             }
         }
 
+        // 📋 データを画面に表示し、同時にフィルターボタンを生成するメイン関数
         function displayPasswords() {
             const listContainer = document.getElementById('passwordList');
-            listContainer.innerHTML = '';
             const passwords = JSON.parse(localStorage.getItem('myPasswords')) || [];
 
-            if (passwords.length === 0) {
-                listContainer.innerHTML = '<p style="text-align:center; color:#999; margin-top: 40px;">保存されたパスワードはありません。</p>';
-                return;
-            }
-
-            passwords.forEach((item, index) => {
-                const itemDiv = document.createElement('div');
-                itemDiv.className = 'password-item';
-                const userTagHtml = item.userName ? `<span class="user-tag">${escapeHtml(item.userName)}</span>` : '';
-
-                itemDiv.innerHTML = `
-                    <div class="item-info">
-                        <div class="site-title">
-                            <span class="site-name">${escapeHtml(item.siteName)}</span>
-                            ${userTagHtml}
-                        </div>
-                        <div class="user-id">ID: ${escapeHtml(item.userId)}</div>
-                        <div class="pass-text">PASS: ${escapeHtml(item.password)}</div>
-                    </div>
-                    <button class="delete-btn" onclick="deletePassword(${index})">削除</button>
-                `;
-                listContainer.appendChild(itemDiv);
-            });
-        }
-
-        function deletePassword(index) {
-            if (confirm('本当に削除しますか？')) {
-                let passwords = JSON.parse(localStorage.getItem('myPasswords')) || [];
-                passwords.splice(index, 1);
-                localStorage.setItem('myPasswords', JSON.stringify(passwords));
-                displayPasswords();
-                generateSyncText();
-            }
-        }
-
-        // セキュリティ対策（エスケープ）
-        function escapeHtml(str) {
-            return str.replace(/[&<>"']/g, function(match) {
-                const escape = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#x27;' };
-                return escape[match];
-            });
-        }
-    </script>
-</body>
-</html>
+            // 1. 使用者フィルターボタン（タグ）の動的自動生成
+            const filterTagsContainer = document.getElementById('filterTags');
+            filterTagsContainer.innerHTML = '';
+            
+            if
