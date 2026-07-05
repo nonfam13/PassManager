@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>PassManager Pro</title>
+    <title>PassManager Tabs</title>
     
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -15,9 +15,9 @@
             --card-color: #ffffff;
             --text-color: #333333;
             --primary-color: #007aff;
-            --success-color: #34c759;
-            --danger-color: #ff3b30;
             --border-color: #e5e5ea;
+            --danger-color: #ff3b30;
+            --tab-bg: #ffffff;
         }
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
@@ -25,22 +25,29 @@
             color: var(--text-color);
             margin: 0;
             padding: 20px;
-            padding-top: calc(20px + env(safe-area-inset-top)); /* iPhoneのノッチ対策 */
+            padding-top: calc(20px + env(safe-area-inset-top));
+            padding-bottom: 80px; /* タブバーのスペースを確保 */
         }
         h1 {
-            font-size: 24px;
+            font-size: 22px;
             margin-bottom: 20px;
             text-align: center;
         }
+        
+        /* 画面切り替え用の設定 */
+        .page {
+            display: none; /* 基本は非表示 */
+        }
+        .page.active {
+            display: block; /* activeクラスがついた画面だけ表示 */
+        }
+
         .form-card, .sync-card {
             background: var(--card-color);
             padding: 20px;
             border-radius: 12px;
             box-shadow: 0 4px 6px rgba(0,0,0,0.05);
             margin-bottom: 20px;
-        }
-        .sync-card {
-            border: 1px dashed var(--primary-color);
         }
         .input-group {
             margin-bottom: 15px;
@@ -59,17 +66,6 @@
             box-sizing: border-box;
             font-size: 16px;
         }
-        .btn-flex {
-            display: table;
-            width: 100%;
-            table-layout: fixed;
-            border-collapse: separate;
-            border-spacing: 10px 0;
-            margin: 0 -10px;
-        }
-        .btn-cell {
-            display: table-cell;
-        }
         button {
             width: 100%;
             padding: 14px;
@@ -81,10 +77,8 @@
             font-weight: bold;
             cursor: pointer;
         }
-        button.success { background-color: var(--success-color); }
         button:active { opacity: 0.8; }
         
-        /* ファイル入力用の隠し要素とカスタムボタン */
         .file-label {
             display: block;
             width: 100%;
@@ -98,10 +92,10 @@
             box-sizing: border-box;
             cursor: pointer;
         }
-        .file-label:active { opacity: 0.8; }
         #fileInput { display: none; }
 
-        .password-list { margin-top: 20px; }
+        /* パスワード一覧のデザイン */
+        .password-list { margin-top: 10px; }
         .password-item {
             background: var(--card-color);
             padding: 15px;
@@ -113,87 +107,166 @@
             justify-content: space-between;
             align-items: center;
         }
-        .item-info .site-name { font-weight: bold; font-size: 16px; margin-bottom: 4px; }
+        .item-info .site-title {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 4px;
+        }
+        .item-info .site-name { font-weight: bold; font-size: 16px; }
+        .item-info .user-tag {
+            font-size: 11px;
+            background: #e5e5ea;
+            padding: 2px 6px;
+            border-radius: 4px;
+            color: #555;
+            font-weight: 600;
+        }
         .item-info .user-id, .item-info .pass-text { font-size: 14px; color: #666; }
         .delete-btn { background-color: var(--danger-color); width: auto; padding: 8px 12px; font-size: 14px; }
+
+        /* 📱 下部固定タブバー（iPhoneアプリ風） */
+        .tab-bar {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: calc(60px + env(safe-area-inset-bottom));
+            background: var(--tab-bg);
+            border-top: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-around;
+            padding-top: 5px;
+            box-sizing: border-box;
+        }
+        .tab-item {
+            background: none;
+            border: none;
+            color: #8e8e93;
+            font-size: 12px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            cursor: pointer;
+            width: 50%;
+            padding: 0;
+        }
+        .tab-item .icon {
+            font-size: 20px;
+            margin-bottom: 2px;
+        }
+        .tab-item.active {
+            color: var(--primary-color); /* 選択されているタブを青くする */
+        }
     </style>
 </head>
 <body>
 
-    <h1>🔒 パスワード管理 Pro</h1>
+    <div id="inputPage" class="page active">
+        <h1>🔒 新しいパスワードを登録</h1>
+        
+        <div class="form-card">
+            <div class="input-group">
+                <label>使用者（だれのアカウント？）</label>
+                <input type="text" id="userName" placeholder="例: 自分, 夫, 妻, 共有">
+            </div>
+            <div class="input-group">
+                <label>サイト名 / サービス名</label>
+                <input type="text" id="siteName" placeholder="例: Amazon, Netflix">
+            </div>
+            <div class="input-group">
+                <label>ユーザーID / メールアドレス</label>
+                <input type="text" id="userId" placeholder="例: example@email.com">
+            </div>
+            <div class="input-group">
+                <label>パスワード</label>
+                <input type="password" id="password" placeholder="パスワードを入力">
+            </div>
+            <button onclick="saveAndExport()">手元に保存 ＆ ファイル書き出し</button>
+        </div>
 
-    <div class="sync-card">
-        <p style="margin-top:0; font-size:14px; color:#555; text-align:center;">👥 Googleドライブ等で同期・マージする</p>
-        <div class="btn-flex">
-            <div class="btn-cell">
-                <button class="success" onclick="exportData()">① ファイルに保存</button>
-            </div>
-            <div class="btn-cell">
-                <label for="fileInput" class="file-label">② 読み込んで合流</label>
-                <input type="file" id="fileInput" accept=".json" onchange="importAndMergeData(this)">
-            </div>
+        <div class="sync-card">
+            <label for="fileInput" class="file-label">🔄 ドライブから読み込んで合流</label>
+            <input type="file" id="fileInput" accept=".json" onchange="importAndMergeData(this)">
         </div>
     </div>
 
-    <div class="form-card">
-        <div class="input-group">
-            <label>サイト名 / サービス名</label>
-            <input type="text" id="siteName" placeholder="例: Amazon, Twitter">
-        </div>
-        <div class="input-group">
-            <label>ユーザーID / メールアドレス</label>
-            <input type="text" id="userId" placeholder="例: example@email.com">
-        </div>
-        <div class="input-group">
-            <label>パスワード</label>
-            <input type="password" id="password" placeholder="パスワードを入力">
-        </div>
-        <button onclick="savePassword()">手元に安全に保存する</button>
+    <div id="listPage" class="page">
+        <h1>📋 保存されたパスワード一覧</h1>
+        <div class="password-list" id="passwordList"></div>
     </div>
 
-    <h2>保存一覧</h2>
-    <div class="password-list" id="passwordList"></div>
+    <nav class="tab-bar">
+        <button class="tab-item active" id="tabInput" onclick="switchPage('input')">
+            <span class="icon">📥</span>
+            <span>入力する</span>
+        </button>
+        <button class="tab-item" id="tabList" onclick="switchPage('list')">
+            <span class="icon">📋</span>
+            <span>一覧を見る</span>
+        </button>
+    </nav>
 
     <script>
         window.onload = function() { displayPasswords(); };
 
-        function savePassword() {
+        // 🔄 画面（タブ）を切り替える関数
+        function switchPage(pageName) {
+            // 一度すべてのページとタブの選択を解除
+            document.getElementById('inputPage').classList.remove('active');
+            document.getElementById('listPage').classList.remove('active');
+            document.getElementById('tabInput').classList.remove('active');
+            document.getElementById('tabList').classList.remove('active');
+
+            // 選ばれたページとタブを活性化
+            if (pageName === 'input') {
+                document.getElementById('inputPage').classList.add('active');
+                document.getElementById('tabInput').classList.add('active');
+            } else if (pageName === 'list') {
+                document.getElementById('listPage').classList.add('active');
+                document.getElementById('tabList').classList.add('active');
+                displayPasswords(); // 一覧を開いた瞬間に最新データを表示
+            }
+        }
+
+        // 🟢 保存と同時にファイル書き出しを行う関数
+        function saveAndExport() {
+            const userName = document.getElementById('userName').value.trim() || '未設定';
             const siteName = document.getElementById('siteName').value.trim();
             const userId = document.getElementById('userId').value.trim();
             const password = document.getElementById('password').value;
 
             if (!siteName || !userId || !password) {
-                alert('すべての項目を入力してください！');
+                alert('使用者以外（サイト名・ID・パスワード）は必須入力です！');
                 return;
             }
 
             let passwords = JSON.parse(localStorage.getItem('myPasswords')) || [];
-            passwords.push({ siteName, userId, password });
+            passwords.push({ userName, siteName, userId, password });
             localStorage.setItem('myPasswords', JSON.stringify(passwords));
 
+            // 入力欄クリア（使用者は残しておくと連続入力がラクなのでそのまま）
             document.getElementById('siteName').value = '';
             document.getElementById('userId').value = '';
             document.getElementById('password').value = '';
-            displayPasswords();
-        }
-
-        // 🟢 自動書き出し（ファイルとしてダウンロード）
-        function exportData() {
-            const passwords = localStorage.getItem('myPasswords') || "[]";
-            const blob = new Blob([passwords], { type: 'application/json' });
-            const url = URL.createObjectURL(blob);
             
+            displayPasswords();
+
+            // 自動でファイル書き出し
+            const blob = new Blob([JSON.stringify(passwords)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-            a.download = 'passmanager_backup.json'; // 保存されるファイル名
+            a.download = 'passmanager_backup.json';
             document.body.appendChild(a);
             a.click();
             document.body.removeChild(a);
             URL.revokeObjectURL(url);
-            alert('「passmanager_backup.json」を出力しました。このファイルをGoogleドライブに保存（上書き）してください。');
+            
+            alert('保存完了しました！一覧タブから確認できます。\nダウンロードされたファイルをGoogleドライブに保存してください。');
         }
 
-        // 🔵 自動読み込み ＆ スマートマージ機能（コンフリクト回避）
+        // 🔵 読み込み＆マージ（使用者名も考慮して重複チェック）
         function importAndMergeData(input) {
             const file = input.files[0];
             if (!file) return;
@@ -201,83 +274,15 @@
             const reader = new FileReader();
             reader.onload = function(e) {
                 try {
-                    // ファイルから取得したデータ
                     const fileData = JSON.parse(e.target.value || e.target.result);
                     if (!Array.isArray(fileData)) throw new Error();
 
-                    // 現在この端末（ブラウザ）にあるデータ
                     let currentData = JSON.parse(localStorage.getItem('myPasswords')) || [];
-
                     let addedCount = 0;
 
-                    // ファイルのデータを1つずつ確認して、重複がなければ合流させる
                     fileData.forEach(fileItem => {
-                        // サイト名とユーザーIDが「両方とも一致するデータ」が既にあるかチェック
+                        // 予期せぬエラー防止（古いデータにuserNameがない場合は '未設定' に補完）
+                        if (!fileItem.userName) fileItem.userName = '未設定';
+
                         const isDuplicate = currentData.some(currentItem => 
                             currentItem.siteName.toLowerCase() === fileItem.siteName.toLowerCase() &&
-                            currentItem.userId.toLowerCase() === fileItem.userId.toLowerCase()
-                        );
-
-                        // 重複がなければ、現在のデータに合流（マージ）させる
-                        if (!isDuplicate) {
-                            currentData.push(fileItem);
-                            addedCount++;
-                        }
-                    });
-
-                    // 合流後のデータをブラウザに保存
-                    localStorage.setItem('myPasswords', JSON.stringify(currentData));
-                    displayPasswords();
-                    
-                    alert(`読み込みと自動合流が完了しました！\n新しく ${addedCount} 件のパスワードが追加されました。`);
-                    input.value = ''; // 選択リセット
-                } catch (err) {
-                    alert('ファイルの読み込みに失敗しました。正しいバックアップファイルを選択してください。');
-                }
-            };
-            reader.readAsText(file);
-        }
-
-        function displayPasswords() {
-            const listContainer = document.getElementById('passwordList');
-            listContainer.innerHTML = '';
-            const passwords = JSON.parse(localStorage.getItem('myPasswords')) || [];
-
-            if (passwords.length === 0) {
-                listContainer.innerHTML = '<p style="text-align:center; color:#999;">保存されたパスワードはありません。</p>';
-                return;
-            }
-
-            passwords.forEach((item, index) => {
-                const itemDiv = document.createElement('div');
-                itemDiv.className = 'password-item';
-                itemDiv.innerHTML = `
-                    <div class="item-info">
-                        <div class="site-name">${escapeHtml(item.siteName)}</div>
-                        <div class="user-id">ID: ${escapeHtml(item.userId)}</div>
-                        <div class="pass-text">PASS: ${escapeHtml(item.password)}</div>
-                    </div>
-                    <button class="delete-btn" onclick="deletePassword(${index})">削除</button>
-                `;
-                listContainer.appendChild(itemDiv);
-            });
-        }
-
-        function deletePassword(index) {
-            if (confirm('本当に削除しますか？')) {
-                let passwords = JSON.parse(localStorage.getItem('myPasswords')) || [];
-                passwords.splice(index, 1);
-                localStorage.setItem('myPasswords', JSON.stringify(passwords));
-                displayPasswords();
-            }
-        }
-
-        function escapeHtml(str) {
-            return str.replace(/[&<>"']/g, function(match) {
-                const escape = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#x27;' };
-                return escape[match];
-            });
-        }
-    </script>
-</body>
-</html>
