@@ -258,4 +258,92 @@
             const filterTagsContainer = document.getElementById('filterTags');
             filterTagsContainer.innerHTML = '';
             
-            if
+            if (passwords.length > 0) {
+                // 重複のない使用者リストを作成
+                const users = ['すべて', ...new Set(passwords.map(item => item.userName || '未設定'))];
+                users.forEach(user => {
+                    const btn = document.createElement('button');
+                    btn.className = `filter-btn ${currentFilterUser === user ? 'active' : ''}`;
+                    btn.textContent = user;
+                    btn.onclick = function() {
+                        currentFilterUser = user;
+                        // タグのactive表示を切り替え
+                        document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+                        btn.classList.add('active');
+                        filterPasswords(); // 絞り込み実行
+                    };
+                    filterTagsContainer.appendChild(btn);
+                });
+            }
+
+            // 初回表示
+            filterPasswords();
+        }
+
+        // 🔍 検索文字と選択されたフィルターに合致するものだけを画面に出す関数
+        function filterPasswords() {
+            const listContainer = document.getElementById('passwordList');
+            listContainer.innerHTML = '';
+            
+            const passwords = JSON.parse(localStorage.getItem('myPasswords')) || [];
+            const searchKeyword = document.getElementById('searchBox').value.toLowerCase().trim();
+
+            // 条件に合うデータだけを抽出
+            const filtered = passwords.filter(item => {
+                const itemUser = item.userName || '未設定';
+                const matchUser = (currentFilterUser === "すべて" || itemUser === currentFilterUser);
+                
+                const matchSearch = item.siteName.toLowerCase().includes(searchKeyword) || 
+                                    item.userId.toLowerCase().includes(searchKeyword);
+                
+                return matchUser && matchSearch;
+            });
+
+            if (filtered.length === 0) {
+                listContainer.innerHTML = '<p style="text-align:center; color:#999; margin-top: 40px;">該当するパスワードはありません。</p>';
+                return;
+            }
+
+            // 抽出されたデータを画面に生成
+            filtered.forEach((item, index) => {
+                // 元の配列での正確な位置（削除ボタン用）を見つける
+                const originalIndex = passwords.findIndex(p => p === item);
+                
+                const itemDiv = document.createElement('div');
+                itemDiv.className = 'password-item';
+                const userTagHtml = item.userName ? `<span class="user-tag">${escapeHtml(item.userName)}</span>` : '';
+
+                itemDiv.innerHTML = `
+                    <div class="item-info">
+                        <div class="site-title">
+                            <span class="site-name">${escapeHtml(item.siteName)}</span>
+                            ${userTagHtml}
+                        </div>
+                        <div class="user-id">ID: ${escapeHtml(item.userId)}</div>
+                        <div class="pass-text">PASS: ${escapeHtml(item.password)}</div>
+                    </div>
+                    <button class="delete-btn" onclick="deletePassword(${originalIndex})">削除</button>
+                `;
+                listContainer.appendChild(itemDiv);
+            });
+        }
+
+        function deletePassword(index) {
+            if (confirm('本当に削除しますか？')) {
+                let passwords = JSON.parse(localStorage.getItem('myPasswords')) || [];
+                passwords.splice(index, 1);
+                localStorage.setItem('myPasswords', JSON.stringify(passwords));
+                displayPasswords();
+                generateSyncText();
+            }
+        }
+
+        function escapeHtml(str) {
+            return str.replace(/[&<>"']/g, function(match) {
+                const escape = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#x27;' };
+                return escape[match];
+            });
+        }
+    </script>
+</body>
+</html>
