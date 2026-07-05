@@ -58,17 +58,19 @@
         button:active { opacity: 0.8; }
         button.purple { background-color: #5856d6; }
         
-        /* 🔍 検索・フィルターエリアの追加スタイル */
+        /* 🔍 検索・フィルターエリア */
         .search-card { padding: 15px; }
         .search-box { margin-bottom: 12px; background-color: #f2f2f7; border: none; }
-        .filter-tags { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 5px; }
+        .filter-section { margin-bottom: 12px; }
+        .filter-section-title { font-size: 12px; color: #8e8e93; font-weight: bold; margin-bottom: 6px; }
+        .filter-tags { display: flex; flex-wrap: wrap; gap: 8px; }
         .filter-btn {
             width: auto; padding: 6px 12px; font-size: 13px; background-color: #e5e5ea;
             color: #333; border-radius: 20px; margin-bottom: 0; font-weight: normal;
         }
         .filter-btn.active { background-color: var(--primary-color); color: white; font-weight: bold; }
 
-        /* パスワード一覧のデザイン */
+        /* パスワード一覧 */
         .password-list { margin-top: 10px; }
         .password-item {
             background: var(--card-color); padding: 15px; border-radius: 12px; margin-bottom: 10px;
@@ -131,8 +133,16 @@
         
         <div class="search-card">
             <input type="text" id="searchBox" class="search-box" placeholder="🔍 サイト名やIDで検索..." oninput="filterPasswords()">
-            <div id="filterTags" class="filter-tags">
-                </div>
+            
+            <div class="filter-section">
+                <div class="filter-section-title">👤 使用者で絞り込む</div>
+                <div id="filterUsers" class="filter-tags"></div>
+            </div>
+            
+            <div class="filter-section" style="margin-bottom:0;">
+                <div class="filter-section-title">🌐 サイト・サービス名で絞り込む</div>
+                <div id="filterSites" class="filter-tags"></div>
+            </div>
         </div>
 
         <div class="password-list" id="passwordList"></div>
@@ -150,7 +160,8 @@
     </nav>
 
     <script>
-        let currentFilterUser = "すべて"; // 現在選択されているフィルターの使用者名
+        let currentFilterUser = "すべて"; 
+        let currentFilterSite = "すべて"; 
 
         window.onload = function() { displayPasswords(); generateSyncText(); };
 
@@ -167,8 +178,9 @@
             } else if (pageName === 'list') {
                 document.getElementById('listPage').classList.add('active');
                 document.getElementById('tabList').classList.add('active');
-                currentFilterUser = "すべて"; // 画面を開いたときはリセット
-                document.getElementById('searchBox').value = ""; // 検索ボックスもクリア
+                currentFilterUser = "すべて"; 
+                currentFilterSite = "すべて"; 
+                document.getElementById('searchBox').value = ""; 
                 displayPasswords(); 
             }
         }
@@ -204,10 +216,7 @@
 
         function copyCurrentData() {
             const textarea = document.getElementById('syncTextarea');
-            if (!textarea.value) {
-                alert('コピーするデータがありません。パスワードを登録してください。');
-                return;
-            }
+            if (!textarea.value) { alert('コピーするデータがありません。'); return; }
             textarea.select();
             textarea.setSelectionRange(0, 99999);
             navigator.clipboard.writeText(textarea.value);
@@ -249,17 +258,14 @@
             }
         }
 
-        // 📋 データを画面に表示し、同時にフィルターボタンを生成するメイン関数
+        // 📋 データを画面に表示し、同時にフィルターボタンを生成する
         function displayPasswords() {
-            const listContainer = document.getElementById('passwordList');
             const passwords = JSON.parse(localStorage.getItem('myPasswords')) || [];
 
-            // 1. 使用者フィルターボタン（タグ）の動的自動生成
-            const filterTagsContainer = document.getElementById('filterTags');
-            filterTagsContainer.innerHTML = '';
-            
+            // 1. 使用者フィルター生成
+            const userContainer = document.getElementById('filterUsers');
+            userContainer.innerHTML = '';
             if (passwords.length > 0) {
-                // 重複のない使用者リストを作成
                 const users = ['すべて', ...new Set(passwords.map(item => item.userName || '未設定'))];
                 users.forEach(user => {
                     const btn = document.createElement('button');
@@ -267,20 +273,37 @@
                     btn.textContent = user;
                     btn.onclick = function() {
                         currentFilterUser = user;
-                        // タグのactive表示を切り替え
-                        document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+                        document.querySelectorAll('#filterUsers .filter-btn').forEach(b => b.classList.remove('active'));
                         btn.classList.add('active');
-                        filterPasswords(); // 絞り込み実行
+                        filterPasswords();
                     };
-                    filterTagsContainer.appendChild(btn);
+                    userContainer.appendChild(btn);
                 });
             }
 
-            // 初回表示
+            // 2. サイト名フィルター生成（新機能！）
+            const siteContainer = document.getElementById('filterSites');
+            siteContainer.innerHTML = '';
+            if (passwords.length > 0) {
+                const sites = ['すべて', ...new Set(passwords.map(item => item.siteName))];
+                sites.forEach(site => {
+                    const btn = document.createElement('button');
+                    btn.className = `filter-btn ${currentFilterSite === site ? 'active' : ''}`;
+                    btn.textContent = site;
+                    btn.onclick = function() {
+                        currentFilterSite = site;
+                        document.querySelectorAll('#filterSites .filter-btn').forEach(b => b.classList.remove('active'));
+                        btn.classList.add('active');
+                        filterPasswords();
+                    };
+                    siteContainer.appendChild(btn);
+                });
+            }
+
             filterPasswords();
         }
 
-        // 🔍 検索文字と選択されたフィルターに合致するものだけを画面に出す関数
+        // 🔍 絞り込み実行関数（使用者、サイト名、キーワードすべてをかけ合わせる）
         function filterPasswords() {
             const listContainer = document.getElementById('passwordList');
             listContainer.innerHTML = '';
@@ -288,15 +311,17 @@
             const passwords = JSON.parse(localStorage.getItem('myPasswords')) || [];
             const searchKeyword = document.getElementById('searchBox').value.toLowerCase().trim();
 
-            // 条件に合うデータだけを抽出
             const filtered = passwords.filter(item => {
                 const itemUser = item.userName || '未設定';
                 const matchUser = (currentFilterUser === "すべて" || itemUser === currentFilterUser);
                 
+                const itemSite = item.siteName;
+                const matchSite = (currentFilterSite === "すべて" || itemSite === currentFilterSite);
+                
                 const matchSearch = item.siteName.toLowerCase().includes(searchKeyword) || 
                                     item.userId.toLowerCase().includes(searchKeyword);
                 
-                return matchUser && matchSearch;
+                return matchUser && matchSite && matchSearch;
             });
 
             if (filtered.length === 0) {
@@ -304,9 +329,7 @@
                 return;
             }
 
-            // 抽出されたデータを画面に生成
-            filtered.forEach((item, index) => {
-                // 元の配列での正確な位置（削除ボタン用）を見つける
+            filtered.forEach((item) => {
                 const originalIndex = passwords.findIndex(p => p === item);
                 
                 const itemDiv = document.createElement('div');
